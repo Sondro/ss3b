@@ -52,6 +52,8 @@ cat <<ENDOFUSAGE
 
 Usage: $0 [options]
 
+Command line options override settings from config file.
+
 Options:
  -h                 Show usage.
  -c <config file>   Defaults to ${DEFCONFIG} if not provided. This
