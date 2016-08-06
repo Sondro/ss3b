@@ -1,0 +1,117 @@
+#!/usr/bin/env bash
+
+# author: Mike Gauthier <mikeg@3cx.org>
+#
+# ss3b - Simple S3 Backup
+# A very simple script that reads from a file listing the directories
+# one wishes to have backed up, tars up said directories one at a time,
+# optionally compresses them (default=yes ), and optionally encrpyt the
+# archive using a symetric cypher (gnugp - using CAST5 algorithm by
+# default - default=no). Finally, it will upload to specified S3 bucket
+# a directory named 
+
+set -o nounset
+
+# There are no configuration options in this script. All config options
+# can be found in your config file (default: /etc/ss3b/ss3b.conf)
+
+#######################################################################
+#######################################################################
+
+# Setting the default options
+
+DEFCONFIG="/etc/ss3b/ss3b.conf"
+compress="yes"
+encrypt="no"
+
+
+# // FUNCTIONS //
+
+# Writes to system log. One argument - the log line. PROGNAME must be set
+# before this funtion. Requires logger.
+PROGNAME="ss3b"
+function dolog {
+	logline="$1"
+	logger -t "$PROGNAME" "$logline" || >&2 echo "Error writing log line: $1"
+}
+
+# Simple way to exit on error - two arugment
+# ARG1 = the text to output to STDERR
+# ARG2 = the exit code you want to exit with (defaults to 1)
+# Nice to call this with a check on $? or as the right side of an ||.
+function error_exit {
+	errortext="$1"
+	exitcode="${2-}"
+	[ "${exitcode}xxx" = "xxx" ] || exitcode=1
+	>&2 echo "Error: $errortext" && dolog "Error: $errortext"
+	exit $exitcode
+}
+
+function usage {
+cat <<ENDOFUSAGE
+
+Usage: $0 [options]
+
+Options:
+ -h                 Show usage.
+ -c <config file>   Defaults to ${DEFCONFIG} if not provided. This
+                    file must exist if config_file is not provided
+                    as an argument.
+ -l <list file>     File containing list of directories to back up.
+                    config option: list_file=<list file>
+ -z                 Do compression (via gzip).
+                    config option: compress=yes
+ -e                 Do encryption (via gnupg).
+                    config option: encrypt=yes
+ -b <bucket name>   S3 bucket name.
+                    config option: bucket=<bucket name>
+
+ENDOFUSAGE
+
+}
+
+
+# // MAIN PROGGY //
+
+while getopts ":h :l: :c: :z :e :b:" opt
+do
+	case $opt in
+		h)
+			usage
+			;;
+		l)
+			list_file="$OPTARG"
+			;;
+		c)
+			config="$OPTARG"
+			;;
+		z)
+			compress="yes"
+			;;
+		e)
+			encrypt="yes"
+			;;
+		b)
+			bucketname="$OPTARG"
+			;;
+		\?)
+			echo "Invalid option: -$OPTARG" >&2
+			usage
+			exit 1
+			;;
+		:)
+			echo "Option -$OPTARG requires an argument." >&2
+			usage
+			exit 1
+			;;
+	esac
+done
+
+
+if [ "${config-}xxx" = "xxx" ]; then
+	if [ ! -f "$DEFCONFIG" ]; then
+		error_exit "No config file provided and default config ($DEFCONFIG) does not exist. Try $0 -h."
+	else
+		config="$DEFCONFIG"
+	fi
+fi
