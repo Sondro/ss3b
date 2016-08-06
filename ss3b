@@ -60,13 +60,13 @@ Options:
                     file must exist if config_file is not provided
                     as an argument.
  -l <list file>     File containing list of directories to back up.
-                    config option: list_file=<list file>
+                    config setting: list_file=<list file>
  -z                 Do compression (via gzip).
-                    config option: compress=yes
+                    config setting: compress=yes
  -e                 Do encryption (via gnupg).
-                    config option: encrypt=yes
+                    config setting: encrypt=yes
  -b <bucket name>   S3 bucket name.
-                    config option: bucket=<bucket name>
+                    config setting: bucket=<bucket name>
 
 ENDOFUSAGE
 
