@@ -11,6 +11,8 @@
 # a directory named 
 
 set -o nounset
+set -o pipefail
+IFS=$'\n\t'
 
 # There are no configuration options in this script. All config options
 # can be found in your config file (default: /etc/ss3b/ss3b.conf)
@@ -27,12 +29,30 @@ encrypt="no"
 
 # // FUNCTIONS //
 
+# Output debug information to the debug log (e.g. ./ssb3-debug.out) if the
+# -d option passed on the command line or debug="yes" in the config file.
+# To use, simple pass a string to this function. The first time this function
+# is used, an entry will be made explaining debugging has started for the
+# current PID. _DEBUGLOG needs to be set before 
+
+_DEBUG=""
+function DEBUG {
+	_DEBUGLOG="./debug-$(basename $0).out"
+	if [ "$_DEBUG" == "on" ]; then
+		[ "${1-}" != "" ] &&
+			debugmsg="$1" ||
+			debugmsg="Hmmm... no message sent to DEBUG function."
+		echo "[$(date '+%Y-%m-%d %I:%M:%S')] $1" >> $_DEBUGLOG
+	fi
+}
+
 # Writes to system log. One argument - the log line. PROGNAME must be set
 # before this funtion. Requires logger.
-PROGNAME="ss3b"
 function dolog {
+	PROGNAME=$(basename $0)
+	DEBUG "function dolog: Writing \""${1-}"\" to log."
 	logline="$1"
-	logger -t "$PROGNAME" "$logline" || >&2 echo "Error writing log line: $1"
+	logger -t "$PROGNAME[$$]" "$logline" || >&2 echo "Error writing log line: $1"
 }
 
 # Simple way to exit on error - two arugment
@@ -46,6 +66,8 @@ function error_exit {
 	>&2 echo "Error: $errortext" && dolog "Error: $errortext"
 	exit $exitcode
 }
+
+# Usage... nuff said.
 
 function usage {
 cat <<ENDOFUSAGE
@@ -67,6 +89,7 @@ Options:
                     config setting: encrypt=yes
  -b <bucket name>   S3 bucket name.
                     config setting: bucket=<bucket name>
+ -d                 Enable debug output
 
 ENDOFUSAGE
 
@@ -75,7 +98,7 @@ ENDOFUSAGE
 
 # // MAIN PROGGY //
 
-while getopts ":h :l: :c: :z :e :b:" opt
+while getopts ":h :l: :c: :z :e :b: :d" opt
 do
 	case $opt in
 		h)
@@ -96,6 +119,10 @@ do
 		b)
 			clo_bucketname="$OPTARG"
 			;;
+		d)
+			_DEBUG="on"
+			DEBUG "Starting debug output for process id $$."
+			;;
 		\?)
 			echo "Invalid option: -$OPTARG" >&2
 			usage
@@ -110,7 +137,7 @@ do
 done
 
 
-if [ "${config-}xxx" = "xxx" ]; then
+if [ "${config-}" = "" ]; then
 	if [ ! -f "$DEFCONFIG" ]; then
 		error_exit "No config file provided and default config ($DEFCONFIG) does not exist. Try $0 -h."
 	else
