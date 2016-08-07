@@ -9,13 +9,13 @@
 # archive using a symetric cypher (gnugp - using CAST5 algorithm by
 # default - default=no). Finally, it will upload to specified S3 bucket
 # a directory named 
+#
+# There are no configuration options in this script. All config options
+# can be found in your config file (default: /etc/ss3b/ss3b.conf).
 
 set -o nounset
 set -o pipefail
 IFS=$'\n\t'
-
-# There are no configuration options in this script. All config options
-# can be found in your config file (default: /etc/ss3b/ss3b.conf)
 
 #######################################################################
 #######################################################################
@@ -168,26 +168,32 @@ fi
 DEBUG "Pulling in config from config file '$config'"
 source "$config" || errorexit "Failed to source config file '$config'"
 
+
 # Override config from CLI provided options
-[ -n $clo_listfile ] && listfile=$clo_listfile
-[ -n $clo_compress ] && compress=$clo_compress
-[ -n $clo_encrypt ] && encrypt=$clo_encrypt
-[ -n $clo_bucket ] && bucket=$clo_bucket
+[ -n "$clo_listfile" ] && listfile=$clo_listfile
+[ -n "$clo_compress" ] && compress=$clo_compress
+[ -n "$clo_encrypt" ] && encrypt=$clo_encrypt
+[ -n "$clo_bucket" ] && bucket=$clo_bucket
 
 # Check that all required variables are set, otherwise error
 misconf="" # "declaring"
-[ -z $listfile ] && misconf+=" listfile"
-[ -z $bucket ] && misconf+=" bucket"
-[ -z $aws_access_key_id ] && misconf+=" aws_access_key_id"
-[ -z $aws_secret_access_key ] && misconf+=" aws_secret_access-key"
+[ -z "$listfile" ] && misconf+=" listfile"
+[ -z "$bucket" ] && misconf+=" bucket"
+[ -z "$aws_access_key_id" ] && misconf+=" aws_access_key_id"
+[ -z "$aws_secret_access_key" ] && misconf+=" aws_secret_access-key"
 if [ "$encrypt" = "yes" ]; then
-	[ -z $passphrase ] && misconf+=" passphrase"
+	[ -z "$passphrase" ] && misconf+=" passphrase"
 fi
 
-if [ -n $misconf ]; then
+if [ -n "$misconf" ]; then
 	misconfmsg="The following config parameters are not set, but must be:"
 	misconfmsg+="$misconf"
 	errorexit "$misconfmsg"
+else
+	mesg="Config params set as:"
+	mesg+=" listfile='$listfile'"
+	mesg+=" bucket='$bucket'"
+	mesg+=" compress='$compress'"
+	mesg+=" encrypt='$encrypt'"
+	DEBUG "$mesg"
 fi
-
-
