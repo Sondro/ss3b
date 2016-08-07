@@ -91,6 +91,9 @@ All options needed should be set from the config file. These options are
 provided so overriding the config is possible. Most are easier to simply
 set in the config file aside from debug.
 
+AWS id, AWS secret key, and the encryption passphrase can only be set in
+the config file.
+
 Options:
  -h                 Show usage.
  -c <config file>   Defaults to ${DEFCONFIG} if not provided. This
@@ -197,3 +200,13 @@ else
 	mesg+=" encrypt='$encrypt'"
 	DEBUG "$mesg"
 fi
+
+# Read in all directories from listfile than clean up the list to remove
+# comments and blank lines and such.
+declare -a targets targets_raw
+mapfile -t targets_raw < "$listfile"
+
+for (( x=0; x<${#targets_raw[@]}; x++ )); do
+	echo "$x: ${targets_raw[$x]}"
+	
+done
