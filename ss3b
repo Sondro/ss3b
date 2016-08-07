@@ -20,12 +20,26 @@ IFS=$'\n\t'
 #######################################################################
 #######################################################################
 
-# Setting the default options
+# Setting the program name for later use.
+PROGNAME=$(basename $0)
 
+# "Declaring" some variables we'll use later.
+# Why? See 'set -o unset'. It's easier to check the status of a variable
+# with [ "$var" = "" ] than it is with [ "${var-}" = "" ].
+# Also setting default value where needed.
 DEFCONFIG="/etc/ss3b/ss3b.conf"
-compress="yes"
-encrypt="no"
-
+config=""
+clo_listfile=""
+clo_compress=""
+clo_encrypt=""
+clo_bucket=""
+listfile=""
+compress="no" # Default is not to compress
+encrypt="no"  # Default is not to encrypt
+bucket=""
+passphrase=""
+aws_access_key_id=""
+aws_secret_access_key=""
 
 # // FUNCTIONS //
 
@@ -38,8 +52,8 @@ encrypt="no"
 _DEBUG=""
 function DEBUG {
 	_DEBUGLOG="./debug-$(basename $0).out"
-	if [ "$_DEBUG" == "on" ]; then
-		[ "${1-}" != "" ] &&
+	if [ "$_DEBUG" = "yes" ]; then
+		[ -n "${1-}" ] &&
 			debugmsg="$1" ||
 			debugmsg="Hmmm... no message sent to DEBUG function."
 		echo "[$(date '+%Y-%m-%d %I:%M:%S')] $1" >> $_DEBUGLOG
@@ -49,7 +63,6 @@ function DEBUG {
 # Writes to system log. One argument - the log line. PROGNAME must be set
 # before this funtion. Requires logger.
 function dolog {
-	PROGNAME=$(basename $0)
 	DEBUG "function dolog: Writing \""${1-}"\" to log."
 	logline="$1"
 	logger -t "$PROGNAME[$$]" "$logline" || >&2 echo "Error writing log line: $1"
@@ -59,11 +72,11 @@ function dolog {
 # ARG1 = the text to output to STDERR
 # ARG2 = the exit code you want to exit with (defaults to 1)
 # Nice to call this with a check on $? or as the right side of an ||.
-function error_exit {
+function errorexit {
 	errortext="$1"
-	exitcode="${2-}"
-	[ "${exitcode}xxx" = "xxx" ] || exitcode=1
-	>&2 echo "Error: $errortext" && dolog "Error: $errortext"
+	exitcode="${2-"1"}" # if $2 is unset, value will be 1.
+	DEBUG "In errorexit with errortext='$errortext' and exitcode='$exitcode'"
+	>&2 echo -e "Error: $errortext" && dolog "Error: $errortext"
 	exit $exitcode
 }
 
@@ -72,9 +85,11 @@ function error_exit {
 function usage {
 cat <<ENDOFUSAGE
 
-Usage: $0 [options]
+Usage: $PROGNAME [options]
 
-Command line options override settings from config file.
+All options needed should be set from the config file. These options are
+provided so overriding the config is possible. Most are easier to simply
+set in the config file aside from debug.
 
 Options:
  -h                 Show usage.
@@ -82,14 +97,15 @@ Options:
                     file must exist if config_file is not provided
                     as an argument.
  -l <list file>     File containing list of directories to back up.
-                    config setting: list_file=<list file>
+                     config setting: listfile=<list file>
  -z                 Do compression (via gzip). Default = no.
-                    config setting: compress=yes
+                     config setting: compress=yes
  -e                 Do encryption (via gnupg). Default = no.
-                    config setting: encrypt=yes
+                     config setting: encrypt=yes
  -b <bucket name>   S3 bucket name.
-                    config setting: bucket=<bucket name>
+                     config setting: bucket=<bucket name>
  -d                 Enable debug output
+                     config setting: _DEBUG=yes
 
 ENDOFUSAGE
 
@@ -103,9 +119,10 @@ do
 	case $opt in
 		h)
 			usage
+			exit 0
 			;;
 		l)
-			clo_list_file="$OPTARG"
+			clo_listfile="$OPTARG"
 			;;
 		c)
 			config="$OPTARG"
@@ -117,10 +134,10 @@ do
 			clo_encrypt="yes"
 			;;
 		b)
-			clo_bucketname="$OPTARG"
+			clo_bucket="$OPTARG"
 			;;
 		d)
-			_DEBUG="on"
+			_DEBUG="yes"
 			DEBUG "Starting debug output for process id $$."
 			;;
 		\?)
@@ -137,10 +154,40 @@ do
 done
 
 
-if [ "${config-}" = "" ]; then
+if [ "$config" = "" ]; then
 	if [ ! -f "$DEFCONFIG" ]; then
-		error_exit "No config file provided and default config ($DEFCONFIG) does not exist. Try $0 -h."
+		errorexit "No config file provided and default config ($DEFCONFIG) does not exist. Try $0 -h."
 	else
+		DEBUG "There is no config file set. Using default - '$DEFCONFIG'"
 		config="$DEFCONFIG"
 	fi
 fi
+
+# Source config file
+
+DEBUG "Pulling in config from config file '$config'"
+source "$config" || errorexit "Failed to source config file '$config'"
+
+# Override config from CLI provided options
+[ -n $clo_listfile ] && listfile=$clo_listfile
+[ -n $clo_compress ] && compress=$clo_compress
+[ -n $clo_encrypt ] && encrypt=$clo_encrypt
+[ -n $clo_bucket ] && bucket=$clo_bucket
+
+# Check that all required variables are set, otherwise error
+misconf="" # "declaring"
+[ -z $listfile ] && misconf+=" listfile"
+[ -z $bucket ] && misconf+=" bucket"
+[ -z $aws_access_key_id ] && misconf+=" aws_access_key_id"
+[ -z $aws_secret_access_key ] && misconf+=" aws_secret_access-key"
+if [ "$encrypt" = "yes" ]; then
+	[ -z $passphrase ] && misconf+=" passphrase"
+fi
+
+if [ -n $misconf ]; then
+	misconfmsg="The following config parameters are not set, but must be:"
+	misconfmsg+="$misconf"
+	errorexit "$misconfmsg"
+fi
+
+
