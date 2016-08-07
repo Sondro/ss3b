@@ -207,6 +207,7 @@ declare -a targets targets_raw
 mapfile -t targets_raw < "$listfile"
 
 for (( x=0; x<${#targets_raw[@]}; x++ )); do
-	echo "$x: ${targets_raw[$x]}"
+	thisline="${targets_raw[$x]}"
+	# BROKEN!!! -- [[ ! ( "$thisline" =~ ^\ *# && "$thisline" =~ ^\ *\t*$ ) ]] && echo "$x: $thisline"
 	
 done
