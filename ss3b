@@ -5,10 +5,9 @@
 # ss3b - Simple S3 Backup
 # A very simple script that reads from a file listing the directories
 # one wishes to have backed up, tars up said directories one at a time,
-# optionally compresses them (default=yes ), and optionally encrpyt the
+# optionally compresses them, and optionally encrpyts the
 # archive using a symetric cypher (gnugp - using CAST5 algorithm by
 # default - default=no). Finally, it will upload to specified S3 bucket
-# a directory named 
 #
 # There are no configuration options in this script. All config options
 # can be found in your config file (default: /etc/ss3b/ss3b.conf).
@@ -37,9 +36,11 @@ listfile=""
 compress="no" # Default is not to compress
 encrypt="no"  # Default is not to encrypt
 bucket=""
+region=""
 passphrase=""
 aws_access_key_id=""
 aws_secret_access_key=""
+hostname=$(hostname -f)  # This can be overridden in the config file.
 
 # // FUNCTIONS //
 
@@ -87,12 +88,13 @@ cat <<ENDOFUSAGE
 
 Usage: $PROGNAME [options]
 
-All options needed should be set from the config file. These options are
-provided so overriding the config is possible. Most are easier to simply
-set in the config file aside from debug.
+All options (except debug) needed should be set from the config file. These
+options are provided so overriding the config is possible (mostly for
+testing). Debug output can only be enable with the -d option.
 
 AWS id, AWS secret key, and the encryption passphrase can only be set in
-the config file.
+the config file. This means you must ensure the config file has safe
+permissions.
 
 Options:
  -h                 Show usage.
@@ -101,12 +103,14 @@ Options:
                     as an argument.
  -l <list file>     File containing list of directories to back up.
                      config setting: listfile=<list file>
- -z                 Do compression (via gzip). Default = no.
+ -z                 Do compression (via gzip). Default = no
                      config setting: compress=yes
- -e                 Do encryption (via gnupg). Default = no.
+ -e                 Do encryption (via gnupg). Default = no
                      config setting: encrypt=yes
- -b <bucket name>   S3 bucket name.
+ -b <bucket name>   S3 bucket name
                      config setting: bucket=<bucket name>
+ -r <region>        AWS region
+                     config setting: region=<region>
  -d                 Enable debug output
                      config setting: _DEBUG=yes
 
@@ -117,7 +121,7 @@ ENDOFUSAGE
 
 # // MAIN PROGGY //
 
-while getopts ":h :l: :c: :z :e :b: :d" opt
+while getopts ":h :l: :c: :z :e :b: :r: :d" opt
 do
 	case $opt in
 		h)
@@ -138,6 +142,9 @@ do
 			;;
 		b)
 			clo_bucket="$OPTARG"
+			;;
+		r)
+			clo_region="$OPTARG"
 			;;
 		d)
 			_DEBUG="yes"
@@ -177,11 +184,13 @@ source "$config" || errorexit "Failed to source config file '$config'"
 [ -n "$clo_compress" ] && compress=$clo_compress
 [ -n "$clo_encrypt" ] && encrypt=$clo_encrypt
 [ -n "$clo_bucket" ] && bucket=$clo_bucket
+[ -n "$clo_region" ] && bucket=$clo_region
 
 # Check that all required variables are set, otherwise error
 misconf="" # "declaring"
 [ -z "$listfile" ] && misconf+=" listfile"
 [ -z "$bucket" ] && misconf+=" bucket"
+[ -z "$region" ] && misconf+=" region"
 [ -z "$aws_access_key_id" ] && misconf+=" aws_access_key_id"
 [ -z "$aws_secret_access_key" ] && misconf+=" aws_secret_access-key"
 if [ "$encrypt" = "yes" ]; then
@@ -196,18 +205,32 @@ else
 	mesg="Config params set as:"
 	mesg+=" listfile='$listfile'"
 	mesg+=" bucket='$bucket'"
+	mesg+=" region='$region'"
 	mesg+=" compress='$compress'"
 	mesg+=" encrypt='$encrypt'"
 	DEBUG "$mesg"
 fi
 
-# Read in all directories from listfile than clean up the list to remove
-# comments and blank lines and such.
+# Read in all directories from listfile then clean up the list to remove
+# comments and blank lines and such. Trying to do a few sane things like
+# dropping lines that are commented out and blank lines. This can easily be
+# broken with some thought (e.g. putting quotes around a line in listfile).
 declare -a targets targets_raw
-mapfile -t targets_raw < "$listfile"
+mapfile -t targets_raw < "$listfile" || errorexit "Unable to open listfile $listfile"
 
 for (( x=0; x<${#targets_raw[@]}; x++ )); do
 	thisline="${targets_raw[$x]}"
-	# BROKEN!!! -- [[ ! ( "$thisline" =~ ^\ *# && "$thisline" =~ ^\ *\t*$ ) ]] && echo "$x: $thisline"
-	
+	# Note that the single quotes around the '#' in the regex are not
+	# actually needed (or desired). It doesn't change the way the regex works,
+	# but it does work around a nasty bug in vim that mucks up the syntax
+	# highlghting.
+	[[ "$thisline" =~ ^\ *'#' ]] && continue
+	[[ ! "$thisline" =~ ^.*[:alnum:].*$ ]] && continue
+	targets+=("$thisline")
 done
+
+DEBUG "After reading in listfile and cleaning up, this is the list"
+for (( x=0; x<${#targets[@]}; x++ )); do
+	DEBUG "$x: ${targets[$x]}"
+done
+
