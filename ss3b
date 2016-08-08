@@ -28,11 +28,12 @@ PROGNAME=$(basename $0)
 # Also setting default value where needed.
 DEFCONFIG="/etc/ss3b/ss3b.conf"
 config=""
-clo_listfile=""
+clo_pathsfile=""
 clo_compress=""
 clo_encrypt=""
 clo_bucket=""
-listfile=""
+clo_region=""
+pathsfile=""
 compress="no" # Default is not to compress
 encrypt="no"  # Default is not to encrypt
 bucket=""
@@ -97,22 +98,22 @@ the config file. This means you must ensure the config file has safe
 permissions.
 
 Options:
- -h                 Show usage.
- -c <config file>   Defaults to ${DEFCONFIG} if not provided. This
-                    file must exist if config_file is not provided
-                    as an argument.
- -l <list file>     File containing list of directories to back up.
-                     config setting: listfile=<list file>
- -z                 Do compression (via gzip). Default = no
-                     config setting: compress=yes
- -e                 Do encryption (via gnupg). Default = no
-                     config setting: encrypt=yes
- -b <bucket name>   S3 bucket name
-                     config setting: bucket=<bucket name>
- -r <region>        AWS region
-                     config setting: region=<region>
- -d                 Enable debug output
-                     config setting: _DEBUG=yes
+ -h                  Show usage.
+ -c <config file>    Defaults to ${DEFCONFIG} if not provided. This
+                     file must exist if config_file is not provided
+                     as an argument.
+ -p <path file>      File containing list of paths to back up.
+                      config setting: pathsfile=<list file>
+ -z                  Do compression (via gzip). Default = no
+                      config setting: compress=yes
+ -e                  Do encryption (via gnupg). Default = no
+                      config setting: encrypt=yes
+ -b <bucket name>    S3 bucket name
+                      config setting: bucket=<bucket name>
+ -r <region>         AWS region
+                      config setting: region=<region>
+ -d                  Enable debug output
+                      config setting: _DEBUG=yes
 
 ENDOFUSAGE
 
@@ -121,7 +122,7 @@ ENDOFUSAGE
 
 # // MAIN PROGGY //
 
-while getopts ":h :l: :c: :z :e :b: :r: :d" opt
+while getopts ":h :p: :c: :z :e :b: :r: :d" opt
 do
 	case $opt in
 		h)
@@ -129,7 +130,7 @@ do
 			exit 0
 			;;
 		l)
-			clo_listfile="$OPTARG"
+			clo_pathsfile="$OPTARG"
 			;;
 		c)
 			config="$OPTARG"
@@ -180,7 +181,7 @@ source "$config" || errorexit "Failed to source config file '$config'"
 
 
 # Override config from CLI provided options
-[ -n "$clo_listfile" ] && listfile=$clo_listfile
+[ -n "$clo_pathsfile" ] && pathsfile=$clo_pathsfile
 [ -n "$clo_compress" ] && compress=$clo_compress
 [ -n "$clo_encrypt" ] && encrypt=$clo_encrypt
 [ -n "$clo_bucket" ] && bucket=$clo_bucket
@@ -188,7 +189,8 @@ source "$config" || errorexit "Failed to source config file '$config'"
 
 # Check that all required variables are set, otherwise error
 misconf="" # "declaring"
-[ -z "$listfile" ] && misconf+=" listfile"
+[ -z "$cachedir" ] && misconf+=" cachedir"
+[ -z "$pathsfile" ] && misconf+=" pathsfile"
 [ -z "$bucket" ] && misconf+=" bucket"
 [ -z "$region" ] && misconf+=" region"
 [ -z "$aws_access_key_id" ] && misconf+=" aws_access_key_id"
@@ -203,7 +205,8 @@ if [ -n "$misconf" ]; then
 	errorexit "$misconfmsg"
 else
 	mesg="Config params set as:"
-	mesg+=" listfile='$listfile'"
+	mesg+=" cachedir='$cachedir'"
+	mesg+=" pathsfile='$pathsfile'"
 	mesg+=" bucket='$bucket'"
 	mesg+=" region='$region'"
 	mesg+=" compress='$compress'"
@@ -211,12 +214,12 @@ else
 	DEBUG "$mesg"
 fi
 
-# Read in all directories from listfile then clean up the list to remove
+# Read in all directories from pathsfile then clean up the list to remove
 # comments and blank lines and such. Trying to do a few sane things like
 # dropping lines that are commented out and blank lines. This can easily be
-# broken with some thought (e.g. putting quotes around a line in listfile).
+# broken with some thought (e.g. putting quotes around a line in pathsfile).
 declare -a targets targets_raw
-mapfile -t targets_raw < "$listfile" || errorexit "Unable to open listfile $listfile"
+mapfile -t targets_raw < "$pathsfile" || errorexit "Unable to open pathsfile $pathsfile"
 
 for (( x=0; x<${#targets_raw[@]}; x++ )); do
 	thisline="${targets_raw[$x]}"
@@ -229,7 +232,7 @@ for (( x=0; x<${#targets_raw[@]}; x++ )); do
 	targets+=("$thisline")
 done
 
-DEBUG "After reading in listfile and cleaning up, this is the list"
+DEBUG "After reading in pathsfile and cleaning up, this is the list"
 for (( x=0; x<${#targets[@]}; x++ )); do
 	DEBUG "$x: ${targets[$x]}"
 done
