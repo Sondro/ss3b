@@ -82,6 +82,12 @@ function errorexit {
 	exit $exitcode
 }
 
+# Simple secure way to make a temp filename.
+# This exists because mktemp -u is discouaged by the author.
+function mkstemp {
+	echo "/tmp/$(cat /dev/urandom | tr -dc '[:alnum:]' | head -c 8)"
+}
+
 # Usage... nuff said.
 
 function usage {
@@ -232,8 +238,42 @@ for (( x=0; x<${#targets_raw[@]}; x++ )); do
 	targets+=("$thisline")
 done
 
+cleanlist=$(mkstemp)
 DEBUG "After reading in pathsfile and cleaning up, this is the list"
 for (( x=0; x<${#targets[@]}; x++ )); do
+	echo "${targets[$x]}" >> $cleanlist
 	DEBUG "$x: ${targets[$x]}"
 done
+
+# Removing leading slashes from the items in cleanlist
+sed -i -e 's/\///' $cleanlist
+
+# Finally... we do the actual backup after ALL that parsing, loading,
+# and logic checking.
+
+export GZIP=-9
+export AWS_ACCESS_KEY_ID=$aws_access_key_id
+export AWS_SECRET_ACCESS_KEY=$aws_secret_access_key
+
+myfifo=$(mkstemp)
+
+mkfifo -m 600 $myfifo
+echo "$passphrase" > $myfifo &
+exec 3<$myfifo
+
+tar	--create \
+	--directory=/ \
+	--files-from=$cleanlist \
+	--listed-incremental=/tmp/thisincremental \
+	--level=0 \
+	--gzip |
+gpg	--batch \
+	--passphrase-fd 3 \
+	--quiet \
+	-c |
+aws	--region $region \
+	s3 cp - s3://$bucket/thisarchive3.tgz.gpg --quiet
+
+rm -f $cleanlist
+rm -f $myfifo
 
