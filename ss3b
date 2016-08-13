@@ -70,6 +70,13 @@ function dolog {
 	logger -t "$PROGNAME[$$]" "$logline" || >&2 echo "Error writing log line: $1"
 }
 
+# cleanup -- rm any temp files, start or stop things, etc
+# usually called on ERR (via trap) or at the end of the script
+function cleanup {
+	rm -f "$cleanlist"
+	rm -f "$myfifo"
+}
+
 # Simple way to exit on error - two arugment
 # ARG1 = the text to output to STDERR
 # ARG2 = the exit code you want to exit with (defaults to 1)
@@ -128,6 +135,10 @@ ENDOFUSAGE
 
 # // MAIN PROGGY //
 
+# Always trap first
+trap cleanup ERR
+
+# Deal with CLI passed options
 while getopts ":h :p: :c: :z :e :b: :r: :d" opt
 do
 	case $opt in
@@ -191,7 +202,7 @@ source "$config" || errorexit "Failed to source config file '$config'"
 [ -n "$clo_compress" ] && compress=$clo_compress
 [ -n "$clo_encrypt" ] && encrypt=$clo_encrypt
 [ -n "$clo_bucket" ] && bucket=$clo_bucket
-[ -n "$clo_region" ] && bucket=$clo_region
+[ -n "$clo_region" ] && region=$clo_region
 
 # Check that all required variables are set, otherwise error
 misconf="" # "declaring"
@@ -274,6 +285,4 @@ gpg	--batch \
 aws	--region $region \
 	s3 cp - s3://$bucket/thisarchive3.tgz.gpg --quiet
 
-rm -f $cleanlist
-rm -f $myfifo
-
+cleanup

@@ -1,5 +1,5 @@
 2016-08-08
-- Implement command line ability to force incremental level
+- Implement command line ability to force full backup
 - Create setid tracking and logging
 - Create filename mgmt based on hostname, setid, full or diff, and date.
 - Confiuration of day to perform full back up, check and do full or
