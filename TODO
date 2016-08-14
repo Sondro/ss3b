@@ -4,8 +4,8 @@
 - Create filename mgmt based on hostname, setid, full or diff, and date.
 - Confiuration of day to perform full back up, check and do full or
   differential
-- Implement clean up and trap on ERR (and end with cleanup)
-- Look into using openssl to encrypt instead of gpg
+X Implement clean up and trap on ERR (and end with cleanup)
+X Look into using openssl to encrypt instead of gpg
 	encrypt: openssl enc -aes-256-cbc -salt -in file -out file.enc
 	decrypt: openssl enc -aes-256-cbc -d -in file.enc -out file
 

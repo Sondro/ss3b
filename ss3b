@@ -278,10 +278,8 @@ tar	--create \
 	--listed-incremental=/tmp/thisincremental \
 	--level=0 \
 	--gzip |
-gpg	--batch \
-	--passphrase-fd 3 \
-	--quiet \
-	-c |
+openssl enc -pass fd:3 \
+	-aes-256-cbc -salt |
 aws	--region $region \
 	s3 cp - s3://$bucket/thisarchive3.tgz.gpg --quiet
 
