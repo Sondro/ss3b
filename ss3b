@@ -23,8 +23,10 @@ IFS=$'\n\t'
 PROGNAME=$(basename $0)
 
 # "Declaring" some variables we'll use later.
-# Why? See 'set -o unset'. It's easier to check the status of a variable
-# with [ "$var" = "" ] than it is with [ "${var-}" = "" ].
+# Why? See 'set -o nounset'. Makes find errors MUCH easier in bash.
+# It's easier to check the status of a variable
+# with [ "$var" = "" ] than it is with [ "${var-}" = "" ] (and a lot
+# easier to read), so that's what we're "declaring" variables.
 # Also setting default value where needed.
 DEFCONFIG="/etc/ss3b/ss3b.conf"
 config=""
@@ -34,14 +36,15 @@ clo_encrypt=""
 clo_bucket=""
 clo_region=""
 pathsfile=""
-compress="no" # Default is not to compress
-encrypt="no"  # Default is not to encrypt
+typeset -l compress="no" # Default is not to compress - forcing lower case
+typeset -l encrypt="no"  # Default is not to encrypt - forcing lower case
 bucket=""
-region=""
+typeset -l region="" # No default - forcing lowercase on this var
 passphrase=""
 aws_access_key_id=""
 aws_secret_access_key=""
 hostname=$(hostname -f)  # This can be overridden in the config file.
+myfifo=""
 
 # // FUNCTIONS //
 
@@ -266,21 +269,31 @@ export GZIP=-9
 export AWS_ACCESS_KEY_ID=$aws_access_key_id
 export AWS_SECRET_ACCESS_KEY=$aws_secret_access_key
 
-myfifo=$(mkstemp)
+case $compress in
+	yes|ye|yes|1|true)
+		compressopt="--gzip"
+		;;
+	*)
+		compressopt=""
+esac
 
-mkfifo -m 600 $myfifo
-echo "$passphrase" > $myfifo &
-exec 3<$myfifo
+case $encrypt in
+	yes|ye|yes|1|true)
+		myfifo=$(mkstemp)
+		mkfifo -m 600 $myfifo
+		echo "$passphrase" > $myfifo &
+		exec 3<$myfifo
+		encryptcmd="openssl enc -pass fd:3 -aes-256-cbc -salt |"
+		encsuffix=".enc"
+		;;
+	*)
+		encryptcmd=""
+		encsuffix=""
+esac
 
-tar	--create \
-	--directory=/ \
-	--files-from=$cleanlist \
-	--listed-incremental=/tmp/thisincremental \
-	--level=0 \
-	--gzip |
-openssl enc -pass fd:3 \
-	-aes-256-cbc -salt |
-aws	--region $region \
-	s3 cp - s3://$bucket/thisarchive3.tgz.gpg --quiet
+tarcmd="tar --create --directory=/ --files-from=$cleanlist --listed-incremental=/tmp/thisincremental --level=0 $compressopt |"
+awscmd="aws --region $region s3 cp - s3://$bucket/thisarchive4.tgz$encsuffix --quiet"
+
+eval "$tarcmd $encryptcmd $awscmd"
 
 cleanup
