@@ -307,7 +307,11 @@ sed -i -e 's/\///' $cleanlist
 
 budate="$(date +%Y%m%d%H%M)"
 
-# TODO - Check if full or diff and set flag
+# TODO - Check if full or diff and set flag (is it full back up day?)
+# TODO - Need to set config var for full back up day -- also check to
+#        see if full backup was forced from CLI or it is the first
+#        ever run (could use a value in "initialized" trigger file).
+# TODO - Get or set (new) setid.
 
 arcprefix="${hostid}.SETID.full.${budate}"
 

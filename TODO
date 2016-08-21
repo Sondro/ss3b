@@ -1,3 +1,10 @@
+2016-08-21
+- Check if full or diff and set flag (is it full back up day?)
+- Need to set config var for full back up day -- also check to
+  see if full backup was forced from CLI or it is the first
+  ever run (could use a value in "initialized" trigger file).
+- Get or set (new) setid.
+
 2016-08-08
 - Implement command line ability to force full backup
 - Create setid tracking and logging
