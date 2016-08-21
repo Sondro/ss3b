@@ -35,6 +35,7 @@ clo_compress=""
 clo_encrypt=""
 clo_bucket=""
 clo_region=""
+clo_inithost=""
 pathsfile=""
 typeset -l compress="no" # Default is not to compress - forcing lower case
 typeset -l encrypt="no"  # Default is not to encrypt - forcing lower case
@@ -135,6 +136,27 @@ ENDOFUSAGE
 
 }
 
+# Initializes host. Creates unique host id (hostname-<random alphnumeric>),
+# creates SETID file, and drops the "initialized" trigger file into the
+# cachedir.
+function inithost {
+	echo "Initializing this host will destroy any previous hostid and setlist"
+	echo "information."
+	echo -n "Continue (type: yes)? "
+	read contresp
+	[ ! "$contresp" = "yes" ] && errorexit "Initialization aborted."
+	if [ ! -d "$cachedir" ]; then
+		errorexit "Cachedir ($cachedir) does not exist."
+	fi
+	thishostid="$hostname-$(cat /dev/urandom | tr -dc '[:alnum:]' | head -c 8)"
+	echo "$thishostid" > "$cachedir/HOSTNAME"
+	touch "$cachedir/${thishostid}.SETLIST"
+	touch "$cachedir/initialized"
+
+	echo
+	echo "Host successfully initialized."
+	exit 0
+}
 
 # // MAIN PROGGY //
 
@@ -142,7 +164,7 @@ ENDOFUSAGE
 trap cleanup ERR
 
 # Deal with CLI passed options
-while getopts ":h :p: :c: :z :e :b: :r: :d" opt
+while getopts ":h :p: :c: :z :e :b: :r: :d :I" opt
 do
 	case $opt in
 		h)
@@ -170,6 +192,9 @@ do
 		d)
 			_DEBUG="yes"
 			DEBUG "Starting debug output for process id $$."
+			;;
+		I)
+			clo_inithost="yes"
 			;;
 		\?)
 			echo "Invalid option: -$OPTARG" >&2
@@ -234,6 +259,15 @@ else
 	DEBUG "$mesg"
 fi
 
+# If -I was set, run inithost
+[ "$clo_inithost" = "yes" ] && inithost
+
+# Check that this system has been initiated (at least locally).
+if [ ! -f "$cachedir/initialized" ]; then
+	errorexit "This host has not been initialized or something \"bad\" has happened in the cache dir ($cachedir). See -I option to initialize."
+fi
+
+
 # Read in all directories from pathsfile then clean up the list to remove
 # comments and blank lines and such. Trying to do a few sane things like
 # dropping lines that are commented out and blank lines. This can easily be
@@ -272,9 +306,11 @@ export AWS_SECRET_ACCESS_KEY=$aws_secret_access_key
 case $compress in
 	yes|ye|yes|1|true)
 		compressopt="--gzip"
+		compsuffix=".tgz"
 		;;
 	*)
 		compressopt=""
+		compsuffix=".tar"
 esac
 
 case $encrypt in
@@ -292,7 +328,7 @@ case $encrypt in
 esac
 
 tarcmd="tar --create --directory=/ --files-from=$cleanlist --listed-incremental=/tmp/thisincremental --level=0 $compressopt |"
-awscmd="aws --region $region s3 cp - s3://$bucket/thisarchive4.tgz$encsuffix --quiet"
+awscmd="aws --region $region s3 cp - s3://$bucket/thisarchive4${compsuffix}${encsuffix} --quiet"
 
 eval "$tarcmd $encryptcmd $awscmd"
 
