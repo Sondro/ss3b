@@ -66,6 +66,13 @@ function DEBUG {
 	fi
 }
 
+# Produces a random alphanumeric string. Only argument is the string
+# length (default to 8).
+function randstr {
+	thislen="${1:-8}"
+	thisstr="$(cat /dev/urandom | tr -dc '[:alnum:]' | head -c $thislen)"
+	echo "$thisstr"
+}
 # Writes to system log. One argument - the log line. PROGNAME must be set
 # before this funtion. Requires logger.
 function dolog {
@@ -96,7 +103,7 @@ function errorexit {
 # Simple secure way to make a temp filename.
 # This exists because mktemp -u is discouaged by the author.
 function mkstemp {
-	echo "/tmp/$(cat /dev/urandom | tr -dc '[:alnum:]' | head -c 8)"
+	echo "/tmp/$(randstr)"
 }
 
 # Usage... nuff said.
@@ -148,10 +155,10 @@ function inithost {
 	if [ ! -d "$cachedir" ]; then
 		errorexit "Cachedir ($cachedir) does not exist."
 	fi
-	thishostid="$hostname-$(cat /dev/urandom | tr -dc '[:alnum:]' | head -c 8)"
-	echo "$thishostid" > "$cachedir/HOSTNAME"
-	touch "$cachedir/${thishostid}.SETLIST"
-	touch "$cachedir/initialized"
+	thishostid="$hostname-$(randstr)"
+	echo "$thishostid" > "$cachedir/HOSTNAME" || errorexit "Cannot create file HOSTNAME in ${cachedir}."
+	touch "$cachedir/${thishostid}.SETLIST" || errorexit "Cannot create file ${thishostid}.SETLIST in ${cachedir}."
+	touch "$cachedir/initialized" || erroexit "Cannot create file $cachedir/initialized in ${cachedir}."
 
 	echo
 	echo "Host successfully initialized."
@@ -259,7 +266,7 @@ else
 	DEBUG "$mesg"
 fi
 
-# If -I was set, run inithost
+# If -I (initialize host) was set, run inithost
 [ "$clo_inithost" = "yes" ] && inithost
 
 # Check that this system has been initiated (at least locally).
@@ -267,6 +274,7 @@ if [ ! -f "$cachedir/initialized" ]; then
 	errorexit "This host has not been initialized or something \"bad\" has happened in the cache dir ($cachedir). See -I option to initialize."
 fi
 
+hostid="$(head -n 1 $cachedir/HOSTNAME)"
 
 # Read in all directories from pathsfile then clean up the list to remove
 # comments and blank lines and such. Trying to do a few sane things like
@@ -295,6 +303,19 @@ done
 
 # Removing leading slashes from the items in cleanlist
 sed -i -e 's/\///' $cleanlist
+
+
+budate="$(date +%Y%m%d%H%M)"
+
+# TODO - Check if full or diff and set flag
+
+arcprefix="${hostid}.SETID.full.${budate}"
+
+
+########################################################################
+########################################################################
+########################################################################
+########################################################################
 
 # Finally... we do the actual backup after ALL that parsing, loading,
 # and logic checking.
@@ -328,7 +349,7 @@ case $encrypt in
 esac
 
 tarcmd="tar --create --directory=/ --files-from=$cleanlist --listed-incremental=/tmp/thisincremental --level=0 $compressopt |"
-awscmd="aws --region $region s3 cp - s3://$bucket/thisarchive4${compsuffix}${encsuffix} --quiet"
+awscmd="aws --region $region s3 cp - s3://$bucket/${arcprefix}${compsuffix}${encsuffix} --quiet"
 
 eval "$tarcmd $encryptcmd $awscmd"
 
