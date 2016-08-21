@@ -1,0 +1,36 @@
+# Cach directory - for storage of setid log/db, etc.
+cachedir="/var/local/ss3b"
+
+# List of target paths to backup
+pathsfile="/etc/ss3b/paths_list"
+
+# AWS access key id
+aws_access_key_id="XXXXXXXXXXXXXXXXXXXXXXX"
+
+# AWS secret access key
+aws_secret_access_key="XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+
+# Region to use
+region="us-east-1"
+
+# S3 bucket to use for backups
+bucket="sys-level-bu"
+
+# Do gzip compress, yes or no?
+compress="yes"
+
+# Do encryption (via openssl), yes or no?
+encrypt="yes"
+
+# Passphrase to use for OpenSSL encryption of files prior to uploading
+passphrase="strongpassphrase"
+
+# ss3b performs one full back up per week. Set the day on which the full
+# will happen. Every other day will be a differential backup.
+# 1 = Monday, 2 = Tuesday, 3 = Wednesday, 4 = Thursday
+# 5 = Friday, 6 = Saturday, 7 = Sunday
+# When the backup on each day occurs is defined by when you call
+# ss3b from cron (or anacron if you so wish).
+# If unset, defaults to Sunday (7).
+#
+#fullday=7
