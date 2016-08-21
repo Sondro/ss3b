@@ -1,15 +1,19 @@
 2016-08-21
-- Check if full or diff and set flag (is it full back up day?)
-- Need to set config var for full back up day -- also check to
+x Check if full or diff and set flag (is it full back up day?)
+x Need to set config var for full back up day -- also check to
   see if full backup was forced from CLI or it is the first
   ever run (could use a value in "initialized" trigger file).
 - Get or set (new) setid.
+- Sort out mgmt of the incremental file and storing it and the setlist on s3
+- change the path/name of the backups so each host gets it's own directory in the bucket
+- Ensure good logging of backup progress/process
+- Ensure good use of debugging option throughout (e.g. DEBUG "something is happening.")
 
 2016-08-08
-- Implement command line ability to force full backup
+x Implement command line ability to force full backup
 - Create setid tracking and logging
-- Create filename mgmt based on hostname, setid, full or diff, and date.
-- Confiuration of day to perform full back up, check and do full or
+x Create filename mgmt based on hostname, setid, full or diff, and date.
+x Confiuration of day to perform full back up, check and do full or
   differential
 X Implement clean up and trap on ERR (and end with cleanup)
 X Look into using openssl to encrypt instead of gpg

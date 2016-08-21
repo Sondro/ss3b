@@ -16,6 +16,9 @@ set -o nounset
 set -o pipefail
 IFS=$'\n\t'
 
+# Renicing to priority 10 -- it's nice to be nice.
+renice -n 10 $$ > /dev/null 2>&1
+
 #######################################################################
 #######################################################################
 
@@ -64,7 +67,7 @@ function DEBUG {
 		[ -n "${1-}" ] &&
 			debugmsg="$1" ||
 			debugmsg="Hmmm... no message sent to DEBUG function."
-		echo "[$(date '+%Y-%m-%d %I:%M:%S')] $1" >> $_DEBUGLOG
+		echo "[$(date '+%Y-%m-%d %I:%M:%S')] $1" | tee -a $_DEBUGLOG
 	fi
 }
 
@@ -333,10 +336,10 @@ butype="diff"
 [ $fullday -eq $(date +%u) ] && butype="full"
 [ "$clo_dofull" = "yes" ] && butype="full"
 
-echo "butype = $butype"
-arcprefix="${hostid}.SETID.${butype}.${budate}"
+DEBUG "Backup type is '$butype'"
 
-exit
+arcprefix="${hostid}/SETID.${butype}.${budate}"
+DEBUG "Archive prefix is $arcprefix"
 
 
 ########################################################################
@@ -361,6 +364,8 @@ case $compress in
 		compsuffix=".tar"
 esac
 
+DEBUG "compress = '$compress', compressopt = '$compressopt', compsuffix = '$compsuffix'"
+
 case $encrypt in
 	yes|ye|yes|1|true)
 		myfifo=$(mkstemp)
@@ -375,9 +380,16 @@ case $encrypt in
 		encsuffix=""
 esac
 
+DEBUG "myfifo is '$myfifo', encryptcmd = '$encryptcmd', encsuffix = '$encsuffix'"
+
 tarcmd="tar --create --directory=/ --files-from=$cleanlist --listed-incremental=/tmp/thisincremental --level=0 $compressopt |"
 awscmd="aws --region $region s3 cp - s3://$bucket/${arcprefix}${compsuffix}${encsuffix} --quiet"
 
+DEBUG "tarcmd is '$tarcmd'"
+DEBUG "awscmd is '$awscmd'"
+
+DEBUG "Running $tarcmd $encryptcmd $awscmd"
 eval "$tarcmd $encryptcmd $awscmd"
+DEBUG "I think it's completed. Check AWS."
 
 cleanup
