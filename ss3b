@@ -331,12 +331,6 @@ sed -i -e 's/\///' $cleanlist
 
 budate="$(date +%Y%m%d%H%M)"
 
-# TODO - Check if full or diff and set flag (is it full back up day?)
-# TODO - Need to set config var for full back up day -- also check to
-#        see if full backup was forced from CLI or it is the first
-#        ever run (could use a value in "initialized" trigger file).
-# TODO - Get or set (new) setid.
-
 # Sanity check current value of $fullday. If <0 or >7, error and exit.
 # $fullday can only between 0 and 7 (Monday through Sunday)
 [ $fullday -le 0 -o $fullday -gt 7 ] && errorexit "fullday in config is set to an impossible value."
