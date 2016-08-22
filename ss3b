@@ -51,6 +51,7 @@ aws_secret_access_key=""
 hostname=$(hostname -f)  # This can be overridden in the config file.
 myfifo=""
 fullday=7  # Default is Sunday (7). Can be set in config file.
+setid=""
 
 # // FUNCTIONS //
 
@@ -67,21 +68,23 @@ function DEBUG {
 		[ -n "${1-}" ] &&
 			debugmsg="$1" ||
 			debugmsg="Hmmm... no message sent to DEBUG function."
-		echo "[$(date '+%Y-%m-%d %I:%M:%S')] $1" | tee -a $_DEBUGLOG
+		echo "[$(date '+%Y-%m-%d %I:%M:%S')] $1" | tee -a $_DEBUGLOG >&2
 	fi
 }
 
 # Produces a random alphanumeric string. Only argument is the string
 # length (default to 8).
 function randstr {
+	DEBUG "Entered randstr."
 	thislen="${1:-8}"
 	thisstr="$(cat /dev/urandom | tr -dc '[:alnum:]' | head -c $thislen)"
 	echo "$thisstr"
+	DEBUG "Leaving randstr."
 }
 # Writes to system log. One argument - the log line. PROGNAME must be set
 # before this funtion. Requires logger.
 function dolog {
-	DEBUG "function dolog: Writing \""${1-}"\" to log."
+	DEBUG "Entered dolog: Writing \""${1-}"\" to log."
 	logline="$1"
 	logger -t "$PROGNAME[$$]" "$logline" || >&2 echo "Error writing log line: $1"
 }
@@ -89,8 +92,11 @@ function dolog {
 # cleanup -- rm any temp files, start or stop things, etc
 # usually called on ERR (via trap) or at the end of the script
 function cleanup {
+	DEBUG "Cleaning up after myself (entered cleanup)."
+	exec 3<&-
 	rm -f "$cleanlist"
 	rm -f "$myfifo"
+	DEBUG "Leaving cleanup."
 }
 
 # Simple way to exit on error - two arugment
@@ -98,17 +104,21 @@ function cleanup {
 # ARG2 = the exit code you want to exit with (defaults to 1)
 # Nice to call this with a check on $? or as the right side of an ||.
 function errorexit {
+	DEBUG "Entered errorexit: $1"
 	errortext="$1"
 	exitcode="${2-"1"}" # if $2 is unset, value will be 1.
 	DEBUG "In errorexit with errortext='$errortext' and exitcode='$exitcode'"
 	>&2 echo -e "Error: $errortext" && dolog "Error: $errortext"
+	DEBUG "Exiting with exitcode: $exitcode"
 	exit $exitcode
 }
 
 # Simple secure way to make a temp filename.
 # This exists because mktemp -u is discouaged by the author.
 function mkstemp {
+	DEBUG "Entered mkstemp."
 	echo "/tmp/$(randstr)"
+	DEBUG "Leaving mkstemp."
 }
 
 # Usage... nuff said.
@@ -168,7 +178,6 @@ function inithost {
 	fi
 	thishostid="$hostname-$(randstr)"
 	echo "$thishostid" > "$cachedir/HOSTNAME" || errorexit "Cannot create file HOSTNAME in ${cachedir}."
-	touch "$cachedir/${thishostid}.SETLIST" || errorexit "Cannot create file ${thishostid}.SETLIST in ${cachedir}."
 	touch "$cachedir/initialized" || erroexit "Cannot create file $cachedir/initialized in ${cachedir}."
 
 	echo
@@ -179,7 +188,7 @@ function inithost {
 # // MAIN PROGGY //
 
 # Always trap first
-trap cleanup ERR
+trap cleanup ERR EXIT
 
 # Deal with CLI passed options
 while getopts ":h :p: :c: :z :e :b: :r: :d :I :F" opt
@@ -338,7 +347,34 @@ butype="diff"
 
 DEBUG "Backup type is '$butype'"
 
-arcprefix="${hostid}/SETID.${butype}.${budate}"
+# This next section set up a new or pulls the existing setid.
+# Also manipulates a snapshot file (or sets up for a new one if needed).
+
+setlistfile="$cachedir/${hostid}.SETLIST"
+# If SETLIST file doesn't exist, assuming this is the first time running
+# and forcing butype to 'full'.
+if [ ! -f "$setlistfile" ]; then
+	dolog "No SETLIST file exists ($setlistfile). Assuming first run. Forceing full backup."
+	butype="full"
+fi
+
+# The use of tmpsnapshot file controls whether a full or diff backup is
+# performed. If full, it's just a file name used by tar (--listed-incremental).
+# If diff, the saved snapshot file in $cachedir will be copied to
+# $tmpsnapshot first. The saved $snapshot in $cachedir will always be from the
+# last successful full backup.
+tmpsnapshot="$(mkstemp)"
+if [ "$butype" = "full" ]; then
+	setid="$(randstr)"
+	snapshot="$cachedir/snapshot.${setid}.snar"
+else
+	setid=$(tail -n 1 "$setlistfile" | cut -d, -f 1)
+	[ "$setid" = "" ] && errorexit "setid is blank for some reason. Check the SETLIST file ($setlistfile)."
+	snapshot="$cachedir/snapshot.${setid}.snar"
+	cp "$snapshot" "$tmpsnapshot" || errorexit "Performing diff. Unable to cp snapshot file ($snapshot) to /tmp ($tmpsnapshot)."
+fi
+
+arcprefix="${hostid}/${budate}.${setid}.${butype}"
 DEBUG "Archive prefix is $arcprefix"
 
 
@@ -346,9 +382,6 @@ DEBUG "Archive prefix is $arcprefix"
 ########################################################################
 ########################################################################
 ########################################################################
-
-# Finally... we do the actual backup after ALL that parsing, loading,
-# and logic checking.
 
 export GZIP=-9
 export AWS_ACCESS_KEY_ID=$aws_access_key_id
@@ -366,12 +399,19 @@ esac
 
 DEBUG "compress = '$compress', compressopt = '$compressopt', compsuffix = '$compsuffix'"
 
+# Lots of debug info here as I was having some issue with mkfifo and then
+# with connecting fd 3 to $myfifo. Leaving for now.
 case $encrypt in
 	yes|ye|yes|1|true)
 		myfifo=$(mkstemp)
-		mkfifo -m 600 $myfifo
+		DEBUG "myfifo = '$myfifo' - running mkfifo"
+		mkfifo -m 600 $myfifo || errorexit "mkfifo failed... aborting."
+		DEBUG "mkfifo run complete."
 		echo "$passphrase" > $myfifo &
+		DEBUG "echoed passphrase to $myfifo"
+		sleep 1
 		exec 3<$myfifo
+		DEBUG "fd 3 now reading from $myfifo"
 		encryptcmd="openssl enc -pass fd:3 -aes-256-cbc -salt |"
 		encsuffix=".enc"
 		;;
@@ -382,14 +422,33 @@ esac
 
 DEBUG "myfifo is '$myfifo', encryptcmd = '$encryptcmd', encsuffix = '$encsuffix'"
 
-tarcmd="tar --create --directory=/ --files-from=$cleanlist --listed-incremental=/tmp/thisincremental --level=0 $compressopt |"
+tarcmd="tar --create --directory=/ --files-from=$cleanlist --listed-incremental=$tmpsnapshot $compressopt |"
 awscmd="aws --region $region s3 cp - s3://$bucket/${arcprefix}${compsuffix}${encsuffix} --quiet"
 
 DEBUG "tarcmd is '$tarcmd'"
 DEBUG "awscmd is '$awscmd'"
 
+# Actually running the backup here.
+dolog "Starting $butype backup for setid ${setid}."
 DEBUG "Running $tarcmd $encryptcmd $awscmd"
-eval "$tarcmd $encryptcmd $awscmd"
-DEBUG "I think it's completed. Check AWS."
+starttime=$(date +%s)
+eval "$tarcmd $encryptcmd $awscmd" || errorexit "Unable to complete backup. See errors in log and possibly run again in debug (-d)."
+endtime=$(date +%s)
+totaltime=$((endtime-starttime))
+dolog "Backup ($butype) completed successfully for setid ${setid}. Backup took $totaltime seconds."
 
+if [ "$butype" = "full" ]; then
+	rm -f "$cachedir"/snapshot.*.snar
+	DEBUG "Due to $butype backup, removing $cachedir/snapshot.*.snar files"
+	cp "$tmpsnapshot" "$snapshot" || errorexit "Full backup completed, but unable to save temp snapshot file ($tmpsnapshot) to cache ($snapshot)"
+	DEBUG "Due to $butype backup, copied $tmpsnapshot to $snapshot"
+	rm -f "$tmpsnapshot"
+	echo "$setid,$butype,$budate" >> "$setlistfile"
+else
+	rm -f "$tmpsnapshot"
+	DEBUG "Due to $butype backup, removing $tmpsnapshot as it's not needed"
+	echo "$setid,$butype,$budate" >> "$setlistfile"
+fi
+
+# Finally... clean up after yourself. (See function cleanup)
 cleanup
