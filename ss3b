@@ -242,9 +242,9 @@ done
 
 if [ "$config" = "" ]; then
 	if [ ! -f "$DEFCONFIG" ]; then
+		DEBUG "There is no config file set. Using default - '$DEFCONFIG'"
 		errorexit "No config file provided and default config ($DEFCONFIG) does not exist. Try $0 -h."
 	else
-		DEBUG "There is no config file set. Using default - '$DEFCONFIG'"
 		config="$DEFCONFIG"
 	fi
 fi
@@ -331,9 +331,9 @@ sed -i -e 's/\///' $cleanlist
 
 budate="$(date +%Y%m%d%H%M)"
 
-# Sanity check current value of $fullday. If <0 or >7, error and exit.
-# $fullday can only between 0 and 7 (Monday through Sunday)
-[ $fullday -le 0 -o $fullday -gt 7 ] && errorexit "fullday in config is set to an impossible value."
+# Sanity check current value of $fullday. If <1 or >7, error and exit.
+# $fullday can only between 1 and 7 (Monday through Sunday)
+[ $fullday -le 1 -o $fullday -gt 7 ] && errorexit "fullday in config is set to an impossible value."
 
 butype="diff"
 [ $fullday -eq $(date +%u) ] && butype="full"
