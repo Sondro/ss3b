@@ -3,11 +3,11 @@
 # author: Mike Gauthier <mikeg@3cx.org>
 #
 # ss3b - Simple S3 Backup
-# A very simple script that reads from a file listing the directories
-# one wishes to have backed up, tars up said directories one at a time,
-# optionally compresses them, and optionally encrpyts the
-# archive using a symetric cypher (gnugp - using CAST5 algorithm by
-# default - default=no). Finally, it will upload to specified S3 bucket
+# A "simple" script that reads from a file listing the directories
+# one wishes to have backed up, tars up said directories, optionally
+# compresses them, and optionally encrpyts the archive using a symetric
+# cypher (openssl - one could hack this to use something else like
+# gnupg). Finally, it will upload to specified S3 bucket.
 #
 # There are no configuration options in this script. All config options
 # can be found in your config file (default: /etc/ss3b/ss3b.conf).
@@ -26,10 +26,10 @@ renice -n 10 $$ > /dev/null 2>&1
 PROGNAME=$(basename $0)
 
 # "Declaring" some variables we'll use later.
-# Why? See 'set -o nounset'. Makes find errors MUCH easier in bash.
-# It's easier to check the status of a variable
-# with [ "$var" = "" ] than it is with [ "${var-}" = "" ] (and a lot
-# easier to read), so that's what we're "declaring" variables.
+# Why? See 'set -o nounset'. Makes finding errors MUCH easier in bash.
+# It's easier to check the status of a variable with [ "$var" = "" ]
+# than it is with [ "${var-}" = "" ] (and a lot easier to read), so
+# that's what we're "declaring" variables.
 # Also setting default value where needed.
 DEFCONFIG="/etc/ss3b/ss3b.conf"
 config=""
@@ -55,19 +55,17 @@ setid=""
 
 # // FUNCTIONS //
 
-# Output debug information to the debug log (e.g. ./ssb3-debug.out) if the
-# -d option passed on the command line or debug="yes" in the config file.
-# To use, simple pass a string to this function. The first time this function
-# is used, an entry will be made explaining debugging has started for the
-# current PID. _DEBUGLOG needs to be set before 
+# Output debug information to the debug log (e.g. ./ssb3-debug.out) if
+# the -d option passed on the command line or debug="yes" in the config
+# file. To use, simply pass a string to this function.
 
 _DEBUG=""
 function DEBUG {
-	_DEBUGLOG="./debug-$(basename $0).out"
 	if [ "$_DEBUG" = "yes" ]; then
+		_DEBUGLOG="./debug-$(basename $0).out"
 		[ -n "${1-}" ] &&
 			debugmsg="$1" ||
-			debugmsg="Hmmm... no message sent to DEBUG function."
+			debugmsg="Hmmm... no message sent to function _DEBUG."
 		echo "[$(date '+%Y-%m-%d %I:%M:%S')] $1" | tee -a $_DEBUGLOG >&2
 	fi
 }
@@ -81,6 +79,7 @@ function randstr {
 	echo "$thisstr"
 	DEBUG "Leaving randstr."
 }
+
 # Writes to system log. One argument - the log line. PROGNAME must be set
 # before this funtion. Requires logger.
 function dolog {
@@ -114,7 +113,7 @@ function errorexit {
 }
 
 # Simple secure way to make a temp filename.
-# This exists because mktemp -u is discouaged by the author.
+# This exists because mktemp -u is discouaged by its author.
 function mkstemp {
 	DEBUG "Entered mkstemp."
 	echo "/tmp/$(randstr)"
@@ -293,6 +292,7 @@ fi
 [ "$clo_inithost" = "yes" ] && inithost
 
 # Check that this system has been initiated (at least locally).
+# TODO: Add check on s3 bucket -- see if it's available and writeable
 # Error and exit if it hasn't.
 if [ ! -f "$cachedir/initialized" ]; then
 	errorexit "This host has not been initialized or something \"bad\" has happened in the cache dir ($cachedir). See -I option to initialize."
