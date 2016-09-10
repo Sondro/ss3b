@@ -1,3 +1,8 @@
+2016-09-09
+
+_ BUG - the first item in the paths_list is being dropped on clean up
+        (only seems to be if the first line is a single directory)
+
 2016-08-21
 x Check if full or diff and set flag (is it full back up day?)
 x Need to set config var for full back up day -- also check to
