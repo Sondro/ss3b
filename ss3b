@@ -49,6 +49,7 @@ passphrase=""
 aws_access_key_id=""
 aws_secret_access_key=""
 hostname=$(hostname -f)  # This can be overridden in the config file.
+cleanlist=""
 myfifo=""
 fullday=7  # Default is Sunday (7). Can be set in config file.
 setid=""
@@ -93,8 +94,8 @@ function dolog {
 function cleanup {
 	DEBUG "Cleaning up after myself (entered cleanup)."
 	exec 3<&-
-	rm -f "$cleanlist"
-	rm -f "$myfifo"
+	[[ "$cleanlist" != "" ]] && rm -f "$cleanlist"
+	[[ "$myfifo" != "" ]] && rm -f "$myfifo"
 	DEBUG "Leaving cleanup."
 }
 
