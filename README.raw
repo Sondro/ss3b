@@ -11,6 +11,11 @@ VERSION HISTORY
 
 ss3b is a very simple backup scheme making use of tar, openssl passphrase-based encryption, and Amazon's S3. The use of encryption and compression (gzip) is optional and off by default (configuration file and command-line options can enable this). The use of encryption is HIGHLY recommended (consider you'll likely be backing up your system's password/shadow files -- as one example). ss3b is intended to run as root, so protect configuration files and this script appropriately.
 
+WHY BASH?
+---------
+
+Why did I write this in bash when I could have likely made things easier on myself by using Perl/PAWS or Python or something. Well... it seems a lot of Linux administrators know bash, but not so many know more than that. These are usually more junior admins, but they're also the ones that often get "stuck" with the backup system in smaller shops (and sometimes not-so-small shops). So, I figured I'd write it in something that *everyone* should be able to read, take apart, change, updated, etc.
+
 INSTALLATION
 ------------
 
