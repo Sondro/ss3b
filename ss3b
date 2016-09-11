@@ -48,7 +48,7 @@ typeset -l region="" # No default - forcing lowercase on this var
 passphrase=""
 aws_access_key_id=""
 aws_secret_access_key=""
-hostname=$(hostname -f)  # This can be overridden in the config file.
+hostname=$(hostname)  # This can be overridden in the config file.
 cleanlist=""
 myfifo=""
 fullday=7  # Default is Sunday (7). Can be set in config file.
@@ -293,7 +293,7 @@ fi
 [ "$clo_inithost" = "yes" ] && inithost
 
 # Check that this system has been initiated (at least locally).
-# TODO: Add check on s3 bucket -- see if it's available and writeable
+# TODO - Add check on s3 bucket -- see if it's available and writeable
 # Error and exit if it hasn't.
 if [ ! -f "$cachedir/initialized" ]; then
 	errorexit "This host has not been initialized or something \"bad\" has happened in the cache dir ($cachedir). See -I option to initialize."
@@ -316,7 +316,11 @@ for (( x=0; x<${#targets_raw[@]}; x++ )); do
 	# but it does work around a nasty bug in vim that mucks up the syntax
 	# highlghting. I like vim.
 	[[ "$thisline" =~ ^\ *'#' ]] && continue
-	[[ ! "$thisline" =~ ^.*[:alnum:].*$ ]] && continue
+    # TODO - Fix this.
+	# Commenting this out -- buggy for some reason - causes directories in
+    # the pathsfile that are only one deep (e.g. /etc) to be skipped. This was
+    # was really only for sanity checking.
+	# [[ ! "$thisline" =~ ^.*[:alnum:].*$ ]] && continue
 	targets+=("$thisline")
 done
 
@@ -374,8 +378,6 @@ arcprefix="${hostid}/${budate}.${setid}.${butype}"
 DEBUG "Archive prefix is $arcprefix"
 
 
-########################################################################
-########################################################################
 ########################################################################
 ########################################################################
 
@@ -446,5 +448,4 @@ else
 	echo "$setid,$butype,$budate" >> "$setlistfile"
 fi
 
-# Finally... clean up after yourself. (See function cleanup)
-cleanup
+exit 0
