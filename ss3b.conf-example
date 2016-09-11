@@ -23,7 +23,8 @@ compress="yes"
 encrypt="yes"
 
 # Passphrase to use for OpenSSL encryption of files prior to uploading
-passphrase="strongpassphrase"
+# Recommend single quotes so special characters aren't interpretted.
+passphrase='strongpassphrase'
 
 # ss3b performs one full back up per week. Set the day on which the full
 # will happen. Every other day will be a differential backup.

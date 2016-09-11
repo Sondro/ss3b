@@ -1,6 +1,0 @@
-ss3b - Simple S3 Backup
-
-ss3b is a very simple backup scheme making use of tar, gpg passphrase-based
-encryption, and Amazon's S3.
-
-More to come...
