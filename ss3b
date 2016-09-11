@@ -310,6 +310,7 @@ mapfile -t targets_raw < "$pathsfile" || errorexit "Unable to open pathsfile $pa
 
 for (( x=0; x<${#targets_raw[@]}; x++ )); do
 	thisline="${targets_raw[$x]}"
+	DEBUG "Checking line '$thisline' for inclusion in clean list."
 	# Note that the single quotes around the '#' in the regex are not
 	# actually needed (or desired). It doesn't change the way the regex works,
 	# but it does work around a nasty bug in vim that mucks up the syntax
