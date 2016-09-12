@@ -21,7 +21,12 @@ INSTALLATION
 
 - Copy ss3b.conf-example to your desired config directory (recommend /etc/ss3b as that is the default location ss3b will look). Please protect this file appropriately as it can contain your AWS credentials and optional encryption password/passphrase.
 
-- Create a file containing the absolute paths you wish to be backed up. This file can contain commented lines and blank lines. Keep it simple as the sanity checking in the script isn't very robust. (recommnd this file be placed in the same directory as the config file)
+- Create a file containing the absolute paths you wish to be backed up. This file can contain commented lines and blank lines. Keep it simple as the sanity checking in the script isn't very robust (recommnd this file be placed in the same directory as the config file). This file is quite simple. An example file might look like the following.
+
+ /etc
+ /home/someuser
+ /datastore/www/webpages
+ /var/log/http
 
 - Decide on a cache-dir location and ensure it exists and is writeable by root. (recommend /var/log/ss3b)
 
