@@ -420,7 +420,7 @@ esac
 
 DEBUG "myfifo is '$myfifo', encryptcmd = '$encryptcmd', encsuffix = '$encsuffix'"
 
-tarcmd="tar --create --directory=/ --files-from=$cleanlist --listed-incremental=$tmpsnapshot $compressopt |"
+tarcmd="tar --create --directory=/ --files-from=$cleanlist --listed-incremental=$tmpsnapshot --warning=no-file-changed $compressopt |"
 awscmd="aws --region $region s3 cp - s3://$bucket/${arcprefix}${compsuffix}${encsuffix} --quiet"
 
 DEBUG "tarcmd is '$tarcmd'"
