@@ -1,6 +1,6 @@
 # ss3b - Simple S3 Backup
 
-Author: Mike Gauthier <thalios at 3cx dot org>
+Author: Mike Gauthier &lt;thalios at 3cx dot org&gt;
 
 ## VERSION HISTORY
 
