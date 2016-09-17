@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# author: Mike Gauthier <mikeg@3cx.org>
+# author: Mike Gauthier <thalios1973 at 3cx dot org>
 #
 # ss3b - Simple S3 Backup
 # A "simple" script that reads from a file listing the directories
