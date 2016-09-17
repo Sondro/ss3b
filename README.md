@@ -9,7 +9,7 @@ Author: Mike Gauthier &lt;thalios1973 at 3cx dot org&gt;
 * 0.3 First "stable" release. It does what it's supposed to do, but more to come when time permits.
 * 0.4 Added --warning=no-file-changed to tarcmd so it will not error out when backing up a file that was changed while reading. Better to back up a changed file than no backup at all.
 
-ss3b is a very simple backup scheme making use of tar, openssl passphrase-based encryption, and Amazon's S3. The use of encryption and compression (gzip) is optional and off by default (configuration file and command-line options can enable this). The use of encryption is HIGHLY recommended (consider you'll likely be backing up your system's password/shadow files -- as one example). ss3b is intended to run as root, so protect configuration files and this script appropriately.
+ss3b is a very simple backup scheme making use of tar, openssl passphrase-based encryption, and Amazon's S3. The use of encryption and compression (gzip) is optional and off by default (configuration file and command-line options can enable this). The use of encryption is HIGHLY recommended (considering you'll likely be backing up your system's password/shadow files -- as one example). ss3b is intended to run as root, so protect your configuration files and this script appropriately.
 
 ## WHY BASH?
 
@@ -21,12 +21,12 @@ Why did I write this in bash when I could have likely made things easier on myse
 
 * Create a file containing the absolute paths you wish to be backed up. This file can contain commented lines and blank lines. Keep it simple as the sanity checking in the script isn't very robust (recommnd this file be placed in the same directory as the config file). This file is quite simple. An example file might look like the following.
 
- /etc
- /home/someuser
- /datastore/www/webpages
- /var/log/http
+ /etc  
+ /home/someuser  
+ /datastore/www/webpages  
+ /var/log/http  
 
-* Decide on a cache-dir location and ensure it exists and is writeable by root. (recommend /var/log/ss3b)
+* Decide on a cache-dir location and ensure it exists and is writeable by root. (recommend /var/local/ss3b)
 
 ## S3 SET UP
 
@@ -58,23 +58,23 @@ Recommendation: Configure your bucket's lifcycle. It is recommended that after a
 
 ## CONFIG FILE
 
-Reviewing the example config file should get you going pretty quickly. ss3b -h has some help as well.
+Reviewing the example config file should get you going pretty quickly. `ss3b -h` has some help as well.
 
 ## SYSTEM INITIALIZATION
 
-Once you have your config file set, you'll need to initialize the system (this applies to each new system you deploy ss3b to). This can be done using the -I option.
+Once you have your config file set, you'll need to initialize the system (this applies to each new system you deploy ss3b to). This can be done using the `-I` option.
 
-Initialization simply sets up the cache directory and makes a unique hostname. The hostname (and the folder you'll find in the bucket for this host) is simply the existing hostname with 8 random alphanumeric characters tacked onto the end. This is done JUST IN CASE there are two systems with the same name in your environment (e.g. webhost01.subdomainX.domain.com and webhost01.subdomainY.domain.com). It ensure truly unique references for each system. The FQDN should ensure this isn't needed, but this doesn't seem to always be the case.
+Initialization simply sets up the cache directory and makes a unique hostname. The hostname (and the folder you'll find in the bucket for this host) is simply the existing hostname with 8 random alphanumeric characters tacked onto the end. This is done JUST IN CASE there are two systems with the same name in your environment (e.g. `webhost01.subdomainX.domain.com` and `webhost01.subdomainY.domain.com`). It ensure truly unique references for each system. The FQDN should ensure this isn't needed, but this doesn't seem to always be the case.
 
 ## CONFIGURING DAILY RUNS
 
-This script has no way to run or schedule itself on its own. This is left up to the administrator. Typically running ss3b on a scheduled basis is accomplished via cron (or anacron). ss3b is designed to run daily. It will perform a full backup on the day defined in the config file (fullday variable) and a differential all other days. If ss3b for some reason is not run on the day for a full back up, it will continue to perform diffs until a full is run. A full can beforce with the -F flag. The first time ss3b is run after initialization, a full back up is run by default regardless of the day.
+This script has no way to run or schedule itself on its own. This is left up to the administrator. Typically running ss3b on a scheduled basis is accomplished via cron (or anacron). ss3b is designed to run daily. It will perform a full backup on the day defined in the config file (fullday variable) and a differential all other days. If ss3b for some reason is not run on the day for a full back up, it will continue to perform diffs until a full is run. A full can beforce with the `-F` flag. The first time ss3b is run after initialization, a full back up is run by default regardless of the day.
 
-If everything is set up accordingly, one should simply be able to run ss3b with no flags out of cron (assuming your config file is /etc/ss3b/ss3b.conf).
+If everything is set up accordingly, one should simply be able to run ss3b with no flags out of cron (assuming your config file is `/etc/ss3b/ss3b.conf`).
 
 ## THE SETLIST
 
-After the first backup is run, you'll see a <hostname>.SETLIST file has been created in the cachedir. This file simply contains a list of the backup sets, full or diff type run, and the timestamp of the run. This file is used by the system to know what it's doing but can also be used by you to restore old setsThis file simply contains a list of the backup sets, full or diff type run, and the timestamp of the run. This file is used by the system to know what it's doing but can also be used by you to restore old sets.
+After the first backup is run, you'll see a `&lt;hostname&gt;.SETLIST` file has been created in the cachedir. This file simply contains a list of the backup sets, full or diff type run, and the timestamp of the run. This file is used by the system to know what it's doing but can also be used by you to restore old setsThis file simply contains a list of the backup sets, full or diff type run, and the timestamp of the run. This file is used by the system to know what it's doing but can also be used by you to restore old sets.
 
 ## HELP
 
@@ -116,9 +116,9 @@ After the first backup is run, you'll see a <hostname>.SETLIST file has been cre
 
 ## RESTORING FILES
 
-The backup files simply incremental tar files. Restoring from these should be done per the GNU tar instructions. Downloading and staging of the backup files is up to the administrator. However, if the files are encrypted, they will need to be decrypted first. The following command will accomplish this.
+The backup files are simply incremental tar files. Restoring from these should be done per the GNU tar instructions. Downloading and staging of the backup files is up to the administrator. However, if the files are encrypted, they will need to be decrypted first. The following command will accomplish this.
 
 	$ openssl enc -aes-256-cbc -d -in BACKUPFILE.tgz.enc -out BACKUPFILE.tgz
 
-It will prompt you for the password/passphrase you used during encryption (passphrase var in config file). One could easily stream the file through openssl using pipes and redirects (like most other Unix CLI tools). In fact, one could do a full restore by streaming the download from the aws cli tool, through openssl to decrypt, and through tar to expand the archive on disk.
+It will prompt you for the password/passphrase you used during encryption (passphrase variable in config file). One could easily stream the file through openssl using pipes and redirects (like most other Unix CLI tools). In fact, one could do a full restore by streaming the download from the aws cli tool, through openssl to decrypt, and through tar to expand the archive on disk.
 
