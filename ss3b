@@ -11,6 +11,11 @@
 #
 # There are no configuration options in this script. All config options
 # can be found in your config file (default: /etc/ss3b/ss3b.conf).
+#
+# Copyright (c) 2016 Michael Gauthier
+#
+# This software (ss3b) is copyrighted under the terms of The MIT
+# License. See the LICENSE file distributed with this software.
 
 set -o nounset
 set -o pipefail
