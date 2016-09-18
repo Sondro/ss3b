@@ -7,7 +7,7 @@ Author: Mike Gauthier &lt;thalios1973 at 3cx dot org&gt;
 * 0.1 First working version. Had bugs.
 * 0.2 Some bug fixes and feature changes, released but never deployed.
 * 0.3 First "stable" release. It does what it's supposed to do, but more to come when time permits.
-* 0.4 Added --warning=no-file-changed to tarcmd so it will not error out when backing up a file that was changed while reading. Better to back up a changed file than no backup at all.
+* 0.4 Added --warning=no-file-changed to tarcmd so it will not error out when backing up a file that was changed while reading. Better to back up a changed file than no backup at all. Placed the software under the MIT License.
 
 ss3b is a very simple backup scheme making use of tar, openssl passphrase-based encryption, and Amazon's S3. The use of encryption and compression (gzip) is optional and off by default (configuration file and command-line options can enable this). The use of encryption is HIGHLY recommended (considering you'll likely be backing up your system's password/shadow files -- as one example). ss3b is intended to run as root, so protect your configuration files and this script appropriately.
 
