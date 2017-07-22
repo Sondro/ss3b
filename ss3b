@@ -66,7 +66,7 @@ setid=""
 # file. To use, simply pass a string to this function.
 
 _DEBUG=""
-function DEBUG {
+DEBUG() {
 	if [ "$_DEBUG" = "yes" ]; then
 		_DEBUGLOG="./debug-$(basename $0).out"
 		[ -n "${1-}" ] &&
@@ -78,7 +78,7 @@ function DEBUG {
 
 # Produces a random alphanumeric string. Only argument is the string
 # length (default to 8).
-function randstr {
+randstr() {
 	DEBUG "Entered randstr."
 	thislen="${1:-8}"
 	thisstr="$(cat /dev/urandom | tr -dc '[:alnum:]' | head -c $thislen)"
@@ -88,7 +88,7 @@ function randstr {
 
 # Writes to system log. One argument - the log line. PROGNAME must be set
 # before this funtion. Requires logger.
-function dolog {
+dolog() {
 	DEBUG "Entered dolog: Writing \""${1-}"\" to log."
 	logline="$1"
 	logger -t "$PROGNAME[$$]" "$logline" || >&2 echo "Error writing log line: $1"
@@ -96,7 +96,7 @@ function dolog {
 
 # cleanup -- rm any temp files, start or stop things, etc
 # usually called on ERR (via trap) or at the end of the script
-function cleanup {
+cleanup() {
 	DEBUG "Cleaning up after myself (entered cleanup)."
 	exec 3<&-
 	[[ "$cleanlist" != "" ]] && rm -f "$cleanlist"
@@ -108,7 +108,7 @@ function cleanup {
 # ARG1 = the text to output to STDERR
 # ARG2 = the exit code you want to exit with (defaults to 1)
 # Nice to call this with a check on $? or as the right side of an ||.
-function errorexit {
+errorexit() {
 	DEBUG "Entered errorexit: $1"
 	errortext="$1"
 	exitcode="${2-"1"}" # if $2 is unset, value will be 1.
@@ -120,7 +120,7 @@ function errorexit {
 
 # Simple secure way to make a temp filename.
 # This exists because mktemp -u is discouaged by its author.
-function mkstemp {
+mkstemp() {
 	DEBUG "Entered mkstemp."
 	echo "/tmp/$(randstr)"
 	DEBUG "Leaving mkstemp."
@@ -128,7 +128,7 @@ function mkstemp {
 
 # Usage... nuff said.
 
-function usage {
+usage() {
 cat <<ENDOFUSAGE
 
 Usage: $PROGNAME [options]
@@ -172,7 +172,7 @@ ENDOFUSAGE
 # Initializes host. Creates unique host id (hostname-<random alphnumeric>),
 # creates SETID file, and drops the "initialized" trigger file into the
 # cachedir.
-function inithost {
+inithost() {
 	echo "Initializing this host will destroy any previous hostid and setlist"
 	echo "information."
 	echo -n "Continue (type: yes)? "
